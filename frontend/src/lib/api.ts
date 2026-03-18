@@ -406,6 +406,7 @@ export async function sendEmail(payload: {
   to: string
   subject: string
   text: string
+  html?: string
 }) {
   return requestJson<{ success: boolean; id?: string }>("/api/send", {
     method: "POST",
@@ -413,6 +414,21 @@ export async function sendEmail(payload: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+  })
+}
+
+export async function seedSampleEmails(mailbox: string) {
+  return requestJson<{
+    success: boolean
+    mailbox: string
+    inboxCreated: number
+    sentCreated: number
+  }>("/api/emails/seed-samples", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ mailbox }),
   })
 }
 

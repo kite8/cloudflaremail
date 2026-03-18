@@ -120,50 +120,36 @@ const users: UserRecord[] = [
 const inboxTemplates = [
   {
     sender: "noreply@appleid.apple.com",
-    subject: "Apple ID sign-in verification",
-    preview: "Use the six-digit code below to complete sign in.",
+    subject: "Sample Inbox Text Message",
+    preview: "这是收件箱的纯文本示例邮件，用于检查文本正文和验证码展示。",
     content:
-      "Use verification code 642195 to continue sign in. This code will expire in 5 minutes.",
+      "这是收件箱的纯文本示例邮件。\n\nVerification Code: 642195\n\n请确认列表摘要、验证码提取和正文排版是否正常。",
     verificationCode: "642195",
   },
   {
     sender: "updates@notion.so",
-    subject: "Workspace invite accepted",
-    preview: "Your workspace member list has been updated successfully.",
+    subject: "Sample Inbox HTML Message",
+    preview: "这是收件箱的 HTML 示例邮件，用于检查 iframe 预览和 HTML 切换。",
     content:
-      "The invite for your project workspace has been accepted. Review access permissions when convenient.",
-  },
-  {
-    sender: "support@figma.com",
-    subject: "Design review summary",
-    preview: "Three comments were left on the latest board.",
-    content:
-      "A new design review is ready. There are three comments covering copy polish, spacing, and mobile alignment.",
-  },
-  {
-    sender: "security@cloudflare.com",
-    subject: "New login noticed",
-    preview: "We detected a login from a new device.",
-    content:
-      "A new login was detected for your account. If this was you, no further action is required.",
+      "这是一封带有 HTML 内容的收件示例邮件，同时保留文本回退内容。",
   },
 ]
 
 const sentTemplates = [
   {
     recipients: "team@studio.dev",
-    subject: "Daily inbox digest",
-    preview: "Sharing the latest verification and collaboration traffic.",
+    subject: "Sample Sent Text Message",
+    preview: "这是发件箱的纯文本示例邮件，用于检查发件详情的文本展示。",
     content:
-      "Here is today's digest with verification emails, invite traffic, and sendability health checks.",
+      "这是发件箱的纯文本示例邮件。\n\n用于验证发件列表、正文面板和时间信息的展示。",
     status: "delivered" as const,
   },
   {
     recipients: "qa@product.cn",
-    subject: "Mailbox smoke test",
-    preview: "Please confirm forwarding, login state, and message rendering.",
+    subject: "Sample Sent HTML Message",
+    preview: "这是发件箱的 HTML 示例邮件，用于检查已发送 HTML 内容预览。",
     content:
-      "This is a smoke test for the refactored mailbox flow. Please confirm forwarding, message rendering, and responsiveness.",
+      "这是发件箱的 HTML 示例邮件，同时包含文本回退内容。",
     status: "queued" as const,
   },
 ]
@@ -190,8 +176,8 @@ function buildInbox(mailbox: string) {
       receivedAt: createTimestamp(index * 11),
       content,
       htmlContent:
-        index % 2 === 0
-          ? `<div style="font-family:Arial,sans-serif;padding:16px"><h2>${template.subject}</h2><p>${content}</p></div>`
+        index === 1
+          ? `<div style="font-family:Arial,sans-serif;padding:20px;background:#f5f8ff"><h2 style="margin:0 0 12px">${template.subject}</h2><p style="margin:0 0 10px">${content}</p><div style="padding:12px;border-radius:12px;background:#fff;border:1px solid #dbe6ff">HTML inbox sample for ${mailbox}</div></div>`
           : undefined,
       verificationCode: template.verificationCode,
     }
@@ -212,8 +198,8 @@ function buildSent(mailbox: string) {
       receivedAt: createTimestamp(index * 17 + 4),
       content,
       htmlContent:
-        index === 0
-          ? `<div style="font-family:Arial,sans-serif;padding:16px"><p>${content}</p></div>`
+        index === 1
+          ? `<div style="font-family:Arial,sans-serif;padding:20px;background:#f7fbff"><h2 style="margin:0 0 12px">${template.subject}</h2><p style="margin:0">${content}</p></div>`
           : undefined,
       status: template.status,
     }

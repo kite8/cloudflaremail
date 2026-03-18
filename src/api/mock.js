@@ -41,38 +41,46 @@ export function initMockUsers() {
  * @returns {Array<object>} 模拟邮件列表
  */
 export function buildMockEmails(count = 5) {
-  const senders = ['support@example.com', 'noreply@service.com', 'admin@mock.test'];
-  const subjects = [
-    '[演示数据] 欢迎使用临时邮箱',
-    '[演示数据] 您的验证码是 123456',
-    '[演示数据] 订单已发货',
-    '[演示数据] 密码重置请求',
-    '[演示数据] 账户安全提醒'
+  const samples = [
+    {
+      id: 1000,
+      sender: 'support@example.com',
+      subject: '[演示数据] 收件 Text 示例',
+      received_at: new Date(Date.now() - 4 * 3600000).toISOString(),
+      is_read: 0,
+      preview: '这是一封纯文本收件示例邮件，用于展示正文和验证码。',
+      verification_code: '123456'
+    },
+    {
+      id: 1001,
+      sender: 'noreply@service.com',
+      subject: '[演示数据] 收件 HTML 示例',
+      received_at: new Date(Date.now() - 3 * 3600000).toISOString(),
+      is_read: 0,
+      preview: '这是一封 HTML 收件示例邮件，用于展示 iframe 预览。',
+      verification_code: null
+    },
+    {
+      id: 1002,
+      sender: 'admin@mock.test',
+      subject: '[演示数据] 密码重置请求',
+      received_at: new Date(Date.now() - 2 * 3600000).toISOString(),
+      is_read: 1,
+      preview: '您请求重置密码，请点击链接继续操作。',
+      verification_code: null
+    },
+    {
+      id: 1003,
+      sender: 'alerts@mock.test',
+      subject: '[演示数据] 账户安全提醒',
+      received_at: new Date(Date.now() - 1 * 3600000).toISOString(),
+      is_read: 1,
+      preview: '检测到您的账户有异常登录，请及时确认。',
+      verification_code: null
+    }
   ];
-  const previews = [
-    '这是一封演示邮件，用于展示系统功能...',
-    '您的验证码是 123456，请在5分钟内使用...',
-    '您的订单已发货，预计3-5天送达...',
-    '您请求重置密码，请点击链接...',
-    '检测到您的账户有异常登录...'
-  ];
-  
-  const emails = [];
-  const now = Date.now();
-  
-  for (let i = 0; i < count; i++) {
-    emails.push({
-      id: 1000 + i,
-      sender: senders[i % senders.length],
-      subject: subjects[i % subjects.length],
-      received_at: new Date(now - i * 3600000).toISOString(),
-      is_read: i > 2 ? 1 : 0,
-      preview: previews[i % previews.length],
-      verification_code: i === 1 ? '123456' : null
-    });
-  }
-  
-  return emails;
+
+  return samples.slice(0, count);
 }
 
 /**
@@ -112,11 +120,29 @@ export function buildMockMailboxes(count = 5, offset = 0, domains = MOCK_DOMAINS
  * @returns {object} 模拟邮件详情
  */
 export function buildMockEmailDetail(emailId) {
+  const id = Number(emailId);
+  if (id === 1001) {
+    return {
+      id,
+      sender: 'noreply@service.com',
+      to_addrs: 'demo@exa.cc',
+      subject: '[演示数据] 收件 HTML 示例',
+      verification_code: null,
+      preview: '这是演示邮件的 HTML 预览内容...',
+      content: '这是 HTML 收件示例的文本回退内容。',
+      html_content: '<div style="padding:20px;background:#f7fbff"><h2>收件 HTML 示例</h2><p>这是一封用于展示 HTML 邮件预览的演示数据。</p></div>',
+      received_at: new Date().toISOString(),
+      is_read: 1,
+      r2_bucket: null,
+      r2_object_key: null
+    };
+  }
+
   return {
-    id: Number(emailId),
+    id,
     sender: 'support@example.com',
     to_addrs: 'demo@exa.cc',
-    subject: '[演示数据] 这是一封演示邮件',
+    subject: '[演示数据] 收件 Text 示例',
     verification_code: '123456',
     preview: '这是演示邮件的内容预览...',
     content: '这是演示邮件的纯文本内容。\n\n您的验证码是：123456\n\n请在5分钟内使用。',
@@ -125,5 +151,56 @@ export function buildMockEmailDetail(emailId) {
     is_read: 1,
     r2_bucket: null,
     r2_object_key: null
+  };
+}
+
+export function buildMockSentEmails() {
+  const now = Date.now();
+  return [
+    {
+      id: 2000,
+      recipients: 'team@example.com',
+      subject: '[演示数据] 发件 Text 示例',
+      created_at: new Date(now - 2 * 3600000).toISOString(),
+      status: 'delivered'
+    },
+    {
+      id: 2001,
+      recipients: 'design@example.com',
+      subject: '[演示数据] 发件 HTML 示例',
+      created_at: new Date(now - 1 * 3600000).toISOString(),
+      status: 'delivered'
+    }
+  ];
+}
+
+export function buildMockSentEmailDetail(id) {
+  const mailId = Number(id);
+  if (mailId === 2001) {
+    return {
+      id: mailId,
+      resend_id: null,
+      from_addr: 'demo@exa.cc',
+      recipients: 'design@example.com',
+      subject: '[演示数据] 发件 HTML 示例',
+      html_content: '<div style="padding:20px;background:#f7fbff"><h2>发件 HTML 示例</h2><p>这是一封已发送 HTML 示例邮件。</p></div>',
+      text_content: '这是已发送 HTML 示例邮件的文本回退内容。',
+      status: 'delivered',
+      scheduled_at: null,
+      created_at: new Date().toISOString()
+    };
+  }
+
+  return {
+    id: mailId,
+    resend_id: null,
+    from_addr: 'demo@exa.cc',
+    recipients: 'team@example.com',
+    subject: '[演示数据] 发件 Text 示例',
+    html_content: null,
+    text_content: '这是已发送纯文本示例邮件，用于展示发件箱详情。',
+    status: 'delivered',
+    scheduled_at: null,
+    created_at: new Date().toISOString()
   };
 }

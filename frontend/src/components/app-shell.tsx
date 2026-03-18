@@ -76,14 +76,13 @@ export function AppShell({
   ]
 
   return (
-    <div className="relative flex h-svh overflow-hidden bg-background text-foreground">
+    <div className="workspace-root relative flex h-svh overflow-hidden text-foreground">
       <div className="flex h-svh w-full overflow-hidden p-0 lg:p-4 lg:pb-22">
-        <div className="mx-auto flex h-full w-full max-w-[1480px] overflow-hidden bg-card lg:rounded-[28px] lg:border lg:border-border lg:shadow-[0_18px_60px_color-mix(in_oklab,var(--color-foreground)_10%,transparent)]">
+        <div className="workspace-shell mx-auto flex h-full w-full max-w-[1480px] overflow-hidden lg:rounded-[28px] lg:border lg:shadow-[0_18px_60px_color-mix(in_oklab,var(--color-foreground)_10%,transparent)]">
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <header className="border-b border-border bg-background/88 backdrop-blur supports-[backdrop-filter]:bg-background/72">
+            <header className="workspace-header border-b border-border">
               <div className="flex items-center gap-3 px-3 py-3 md:px-4">
                 <div className="flex min-w-0 items-center gap-2 md:w-[280px] md:gap-3">
-                  {headerLeading}
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10">
                       <Mail className="h-4 w-4" />
@@ -95,6 +94,7 @@ export function AppShell({
                       <div className="text-[11px] text-muted-foreground">Workspace</div>
                     </div>
                   </div>
+                  {headerLeading}
                 </div>
 
                 {headerContent ? (
@@ -121,14 +121,6 @@ export function AppShell({
                   <Button
                     variant="outline"
                     size="icon"
-                    className="rounded-full"
-                    onClick={() => void logout()}
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
                     className="rounded-xl"
                     onClick={() => setMobileMenuOpen((value) => !value)}
                   >
@@ -144,7 +136,7 @@ export function AppShell({
               ) : null}
             </header>
 
-            <main className="min-w-0 flex-1 overflow-hidden bg-background">
+            <main className="workspace-main min-w-0 flex-1 overflow-hidden">
               {children}
             </main>
           </div>
@@ -155,7 +147,7 @@ export function AppShell({
         <FloatingDock
           items={dockItems}
           showMobile={false}
-          desktopClassName="pointer-events-auto"
+          desktopClassName="workspace-dock pointer-events-auto"
         />
       </div>
 

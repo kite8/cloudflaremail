@@ -188,8 +188,8 @@ export default {
 
       // 插入消息记录
       await DB.prepare(`
-        INSERT INTO messages (mailbox_id, sender, to_addrs, subject, verification_code, preview, r2_bucket, r2_object_key)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO messages (mailbox_id, sender, to_addrs, subject, verification_code, preview, content, html_content, r2_bucket, r2_object_key)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         mailboxId,
         sender,
@@ -197,6 +197,8 @@ export default {
         subject || '(无主题)',
         verificationCode || null,
         preview || null,
+        textContent || null,
+        htmlContent || null,
         'mail-eml',
         objectKey || ''
       ).run();

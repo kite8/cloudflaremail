@@ -6,6 +6,7 @@
 import { getJwtPayload, errorResponse } from './helpers.js';
 import { getCachedSystemStat } from '../utils/cache.js';
 import { recordSentEmail, updateSentEmail } from '../db/index.js';
+import { buildMockSentEmails, buildMockSentEmailDetail } from './mock.js';
 import {
   sendEmailWithAutoResend,
   sendBatchWithAutoResend,
@@ -59,7 +60,7 @@ export async function handleSendApi(request, db, url, path, options) {
   // 发件记录列表
   if (path === '/api/sent' && request.method === 'GET') {
     if (isMock) {
-      return Response.json([]);
+      return Response.json(buildMockSentEmails());
     }
     const from = url.searchParams.get('from') || url.searchParams.get('mailbox') || '';
     if (!from) { return errorResponse('缺少 from 参数', 400); }
@@ -81,7 +82,7 @@ export async function handleSendApi(request, db, url, path, options) {
 
   // 发件详情
   if (request.method === 'GET' && path.startsWith('/api/sent/')) {
-    if (isMock) { return errorResponse('演示模式不可查询真实发送', 403); }
+    if (isMock) { return Response.json(buildMockSentEmailDetail(path.split('/')[3])); }
     const id = path.split('/')[3];
     try {
       const { results } = await db.prepare(`

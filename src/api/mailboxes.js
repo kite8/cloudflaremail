@@ -151,7 +151,7 @@ export async function handleMailboxesApi(request, db, mailDomains, url, path, op
     const role = payload?.role || '';
     
     if (isMock) {
-      return Response.json({ limit: 999, used: 2, remaining: 997 });
+      return Response.json({ limit: 999, used: 5, remaining: 994 });
     }
     
     if (isStrictAdmin(request, options) || role === 'admin') {
@@ -179,7 +179,7 @@ export async function handleMailboxesApi(request, db, mailDomains, url, path, op
       const domainParam = url.searchParams.get('domain');
       const favoriteParam = url.searchParams.get('favorite');
       const forwardParam = url.searchParams.get('forward');
-      let results = buildMockMailboxes(MOCK_DOMAINS);
+      let results = buildMockMailboxes(5, 0, MOCK_DOMAINS);
       // 搜索过滤
       if (searchParam && searchParam.trim()) {
         const q = searchParam.trim().toLowerCase();

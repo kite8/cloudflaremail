@@ -31,6 +31,7 @@ type AppStateValue = {
   setSession: (session: SessionUser | null) => void
   refreshSession: () => Promise<void>
   domains: string[]
+  domainsLoading: boolean
   quota:
     | {
         limit: number
@@ -38,8 +39,10 @@ type AppStateValue = {
         remaining: number
       }
     | undefined
+  quotaLoading: boolean
   users: UserRecord[]
   mailboxes: MailboxRecord[]
+  mailboxesLoading: boolean
   currentMailbox: string
   selectedDomain: string
   mailboxLength: number[]
@@ -303,9 +306,12 @@ export function AppStateProvider({
     setSession,
     refreshSession,
     domains: domainsQuery.data ?? [],
+    domainsLoading: domainsQuery.isLoading,
     quota: quotaQuery.data,
+    quotaLoading: quotaQuery.isLoading,
     users: usersQuery.data ?? [],
     mailboxes,
+    mailboxesLoading: mailboxesQuery.isLoading,
     currentMailbox,
     selectedDomain,
     mailboxLength,

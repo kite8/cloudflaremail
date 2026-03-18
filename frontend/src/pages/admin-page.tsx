@@ -52,7 +52,7 @@ import {
 } from "@/components/ui/table"
 
 function panelClassName() {
-  return "rounded-xl border border-border bg-card text-card-foreground shadow-[0_8px_30px_color-mix(in_oklab,var(--color-foreground)_6%,transparent)]"
+  return "workspace-panel rounded-xl border border-border text-card-foreground shadow-[0_8px_30px_color-mix(in_oklab,var(--color-foreground)_6%,transparent)]"
 }
 
 const PAGE_SIZE = 10
@@ -229,7 +229,7 @@ export function AdminPage() {
         </div>
       }
     >
-      <div className="flex min-h-svh flex-col bg-background">
+      <div className="flex min-h-svh flex-col">
         <div className="grid gap-3 p-3">
           <section className="grid gap-3 md:grid-cols-4">
             <div className={`${panelClassName()} p-3`}>

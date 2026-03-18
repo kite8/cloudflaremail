@@ -61,6 +61,18 @@
   );
   --login-bg-orb-1: rgba(96, 165, 250, 0.18);
   --login-bg-orb-2: rgba(129, 140, 248, 0.18);
+  --workspace-bg-image:
+    radial-gradient(circle at 12% 12%, rgba(59, 130, 246, 0.2), transparent 24%),
+    radial-gradient(circle at 86% 10%, rgba(99, 102, 241, 0.14), transparent 24%),
+    radial-gradient(circle at 52% 96%, rgba(56, 189, 248, 0.1), transparent 28%),
+    linear-gradient(180deg, #f8fbff 0%, #edf4ff 46%, #e2ecff 100%);
+  --workspace-shell-fill: rgba(255, 255, 255, 0.72);
+  --workspace-shell-stroke: rgba(255, 255, 255, 0.52);
+  --workspace-header-fill: rgba(248, 251, 255, 0.84);
+  --workspace-main-fill: rgba(246, 249, 255, 0.62);
+  --workspace-panel-fill: rgba(255, 255, 255, 0.8);
+  --workspace-panel-soft-fill: rgba(248, 251, 255, 0.72);
+  --workspace-dock-fill: rgba(255, 255, 255, 0.74);
 }
 
 .dark {
@@ -119,6 +131,18 @@
   );
   --login-bg-orb-1: rgba(59, 130, 246, 0.2);
   --login-bg-orb-2: rgba(99, 102, 241, 0.18);
+  --workspace-bg-image:
+    radial-gradient(circle at 14% 14%, rgba(59, 130, 246, 0.16), transparent 24%),
+    radial-gradient(circle at 84% 12%, rgba(99, 102, 241, 0.14), transparent 24%),
+    radial-gradient(circle at 50% 94%, rgba(56, 189, 248, 0.08), transparent 28%),
+    linear-gradient(180deg, #020817 0%, #0d1833 52%, #13234a 100%);
+  --workspace-shell-fill: rgba(8, 15, 31, 0.78);
+  --workspace-shell-stroke: rgba(148, 163, 184, 0.16);
+  --workspace-header-fill: rgba(8, 15, 31, 0.72);
+  --workspace-main-fill: rgba(2, 6, 23, 0.28);
+  --workspace-panel-fill: rgba(10, 18, 38, 0.74);
+  --workspace-panel-soft-fill: rgba(10, 18, 38, 0.62);
+  --workspace-dock-fill: rgba(8, 15, 31, 0.74);
 }
 @theme inline {
   --font-sans:
@@ -184,6 +208,50 @@
 
   ::selection {
     background: color-mix(in oklab, var(--color-primary) 24%, white);
+  }
+}
+
+@layer components {
+  .workspace-root {
+    background-color: var(--color-background);
+    background-image: var(--workspace-bg-image);
+    background-size: cover;
+    background-attachment: fixed;
+  }
+
+  .workspace-shell {
+    background: var(--workspace-shell-fill);
+    border-color: var(--workspace-shell-stroke);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+  }
+
+  .workspace-header {
+    background: var(--workspace-header-fill);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .workspace-main {
+    background: var(--workspace-main-fill);
+  }
+
+  .workspace-panel {
+    background: var(--workspace-panel-fill);
+  }
+
+  .workspace-panel-soft {
+    background: var(--workspace-panel-soft-fill);
+  }
+
+  .workspace-search {
+    background: var(--workspace-panel-soft-fill);
+  }
+
+  .workspace-dock {
+    background: var(--workspace-dock-fill);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
   }
 }
 

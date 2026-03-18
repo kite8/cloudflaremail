@@ -21,6 +21,7 @@ import { toast } from "sonner"
 import { AppShell } from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Dialog,
   DialogContent,
@@ -56,7 +57,25 @@ import { type MailboxRecord } from "@/lib/mock-mail"
 
 const PAGE_SIZE = 12
 
+type ConfirmState = {
+  open: boolean
+  title: string
+  description: string
+  confirmLabel: string
+  confirmVariant: "default" | "destructive"
+  action: null | (() => Promise<void> | void)
+}
+
+type ConfirmActionConfig = {
+  title: string
+  description: string
+  confirmLabel: string
+  confirmVariant?: "default" | "destructive"
+  action: () => Promise<void> | void
+}
+
 const columns = (
+  canManage: boolean,
   selectedAddresses: string[],
   onToggleSelectAll: () => void,
   onToggleSelectOne: (address: string) => void,
@@ -67,30 +86,34 @@ const columns = (
   onOpenPasswordDialog: (mailbox: MailboxRecord) => void,
   onDeleteMailbox: (mailbox: MailboxRecord) => void,
 ): ColumnDef<MailboxRecord>[] => [
-  {
-    id: "select",
-    header: () => (
-      <input
-        type="checkbox"
-        className="size-4 rounded border-slate-300"
-        checked={selectedAddresses.length > 0}
-        onChange={onToggleSelectAll}
-        aria-label="选择当前页全部邮箱"
-      />
-    ),
-    cell: ({ row }) => (
-      <input
-        type="checkbox"
-        className="size-4 rounded border-slate-300"
-        checked={selectedAddresses.includes(row.original.address)}
-        onChange={(event) => {
-          event.stopPropagation()
-          onToggleSelectOne(row.original.address)
-        }}
-        aria-label={`选择邮箱 ${row.original.address}`}
-      />
-    ),
-  },
+  ...(canManage
+    ? [
+        {
+          id: "select",
+          header: () => (
+            <input
+              type="checkbox"
+              className="size-4 rounded border-slate-300"
+              checked={selectedAddresses.length > 0}
+              onChange={onToggleSelectAll}
+              aria-label="选择当前页全部邮箱"
+            />
+          ),
+          cell: ({ row }: { row: { original: MailboxRecord } }) => (
+            <input
+              type="checkbox"
+              className="size-4 rounded border-slate-300"
+              checked={selectedAddresses.includes(row.original.address)}
+              onChange={(event) => {
+                event.stopPropagation()
+                onToggleSelectOne(row.original.address)
+              }}
+              aria-label={`选择邮箱 ${row.original.address}`}
+            />
+          ),
+        } satisfies ColumnDef<MailboxRecord>,
+      ]
+    : []),
   {
     accessorKey: "address",
     header: "邮箱地址",
@@ -139,6 +162,7 @@ const columns = (
         variant={row.original.isFavorite ? "default" : "outline"}
         size="sm"
         className="h-8 rounded-xl"
+        disabled={!canManage}
         onClick={(event) => {
           event.stopPropagation()
           onFavoriteMailbox(row.original)
@@ -157,6 +181,7 @@ const columns = (
         variant={row.original.canLogin ? "default" : "outline"}
         size="sm"
         className="h-8 rounded-xl"
+        disabled={!canManage}
         onClick={(event) => {
           event.stopPropagation()
           onToggleLogin(row.original)
@@ -166,63 +191,67 @@ const columns = (
       </Button>
     ),
   },
-  {
-    id: "actions",
-    header: "操作",
-    cell: ({ row }) => (
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 rounded-xl"
-          onClick={(event) => {
-            event.stopPropagation()
-            onResetPassword(row.original)
-          }}
-        >
-          <KeyRound className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 rounded-xl"
-          onClick={(event) => {
-            event.stopPropagation()
-            onOpenPasswordDialog(row.original)
-          }}
-        >
-          改密
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 rounded-xl"
-          onClick={(event) => {
-            event.stopPropagation()
-            onPinMailbox(row.original)
-          }}
-        >
-          <ShieldCheck className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-        className="h-8 rounded-xl text-destructive hover:text-destructive"
-          onClick={(event) => {
-            event.stopPropagation()
-            onDeleteMailbox(row.original)
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    ),
-  },
+  ...(canManage
+    ? [
+        {
+          id: "actions",
+          header: "操作",
+          cell: ({ row }: { row: { original: MailboxRecord } }) => (
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-xl"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onResetPassword(row.original)
+                }}
+              >
+                <KeyRound className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-xl"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onOpenPasswordDialog(row.original)
+                }}
+              >
+                改密
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-xl"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onPinMailbox(row.original)
+                }}
+              >
+                <ShieldCheck className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-xl text-destructive hover:text-destructive"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onDeleteMailbox(row.original)
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ),
+        } satisfies ColumnDef<MailboxRecord>,
+      ]
+    : []),
 ]
 
 export function MailboxesPage() {
   const queryClient = useQueryClient()
-  const { search, setSearch, selectMailbox } = useAppState()
+  const { search, setSearch, selectMailbox, session } = useAppState()
   const [page, setPage] = useState(1)
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([])
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
@@ -230,6 +259,15 @@ export function MailboxesPage() {
   const [newPassword, setNewPassword] = useState("")
   const [forwardDialogOpen, setForwardDialogOpen] = useState(false)
   const [batchForwardAddress, setBatchForwardAddress] = useState("")
+  const [confirmBusy, setConfirmBusy] = useState(false)
+  const [confirmState, setConfirmState] = useState<ConfirmState>({
+    open: false,
+    title: "",
+    description: "",
+    confirmLabel: "确认",
+    confirmVariant: "default",
+    action: null,
+  })
 
   const mailboxesQuery = useQuery({
     queryKey: ["mailboxes-page", page, search],
@@ -247,6 +285,42 @@ export function MailboxesPage() {
   const totalPages = Math.max(1, hasMore ? page + 1 : Math.ceil(Math.max(total, 1) / PAGE_SIZE))
   const allPageSelected =
     rows.length > 0 && rows.every((mailbox) => selectedAddresses.includes(mailbox.address))
+  const canManageMailboxes = session?.role === "admin"
+
+  const openConfirmDialog = ({
+    title,
+    description,
+    confirmLabel,
+    confirmVariant = "default",
+    action,
+  }: ConfirmActionConfig) => {
+    setConfirmState({
+      open: true,
+      title,
+      description,
+      confirmLabel,
+      confirmVariant,
+      action,
+    })
+  }
+
+  const handleConfirmAction = async () => {
+    if (!confirmState.action) {
+      return
+    }
+
+    try {
+      setConfirmBusy(true)
+      await confirmState.action()
+      setConfirmState((current) => ({
+        ...current,
+        open: false,
+        action: null,
+      }))
+    } finally {
+      setConfirmBusy(false)
+    }
+  }
 
   const handleToggleLogin = async (mailbox: MailboxRecord) => {
     try {
@@ -269,14 +343,22 @@ export function MailboxesPage() {
   }
 
   const handleDeleteMailbox = async (mailbox: MailboxRecord) => {
-    try {
-      await deleteMailbox(mailbox.address)
-      await refreshMailboxQueries()
-      setSelectedAddresses((current) => current.filter((address) => address !== mailbox.address))
-      toast.success("邮箱已删除")
-    } catch (error) {
-      toast.error(getErrorMessage(error, "删除邮箱失败"))
-    }
+    openConfirmDialog({
+      title: "删除邮箱",
+      description: `确认后将删除 ${mailbox.address}。`,
+      confirmLabel: "确认删除",
+      confirmVariant: "destructive",
+      action: async () => {
+        try {
+          await deleteMailbox(mailbox.address)
+          await refreshMailboxQueries()
+          setSelectedAddresses((current) => current.filter((address) => address !== mailbox.address))
+          toast.success("邮箱已删除")
+        } catch (error) {
+          toast.error(getErrorMessage(error, "删除邮箱失败"))
+        }
+      },
+    })
   }
 
   const refreshMailboxQueries = async () => {
@@ -314,17 +396,19 @@ export function MailboxesPage() {
   }
 
   const handleResetPassword = async (mailbox: MailboxRecord) => {
-    const confirmed = window.confirm(`确定重置 ${mailbox.address} 的密码吗？`)
-    if (!confirmed) {
-      return
-    }
-
-    try {
-      await resetMailboxPassword(mailbox.address)
-      toast.success("密码已重置")
-    } catch (error) {
-      toast.error(getErrorMessage(error, "重置密码失败"))
-    }
+    openConfirmDialog({
+      title: "重置邮箱密码",
+      description: `确认后将重置 ${mailbox.address} 的密码。`,
+      confirmLabel: "确认重置",
+      action: async () => {
+        try {
+          await resetMailboxPassword(mailbox.address)
+          toast.success("密码已重置")
+        } catch (error) {
+          toast.error(getErrorMessage(error, "重置密码失败"))
+        }
+      },
+    })
   }
 
   const handleOpenPasswordDialog = (mailbox: MailboxRecord) => {
@@ -396,10 +480,10 @@ export function MailboxesPage() {
     }
   }
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: rows,
     columns: columns(
+      canManageMailboxes,
       selectedAddresses,
       toggleSelectAll,
       toggleSelectOne,
@@ -426,34 +510,38 @@ export function MailboxesPage() {
                 setSearch(event.target.value)
                 setPage(1)
               }}
-              className="h-10 rounded-2xl border-border bg-card pl-9 shadow-[0_10px_30px_color-mix(in_oklab,var(--color-foreground)_6%,transparent)]"
+              className="workspace-search h-10 rounded-2xl border-border pl-9 shadow-[0_10px_30px_color-mix(in_oklab,var(--color-foreground)_6%,transparent)]"
               placeholder="搜索邮箱"
             />
           </div>
         </div>
       }
     >
-      <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="flex h-full min-h-0 flex-col">
         <div className="grid min-h-0 flex-1 gap-3 p-3">
-          <section className="rounded-2xl border border-border bg-card shadow-[0_8px_30px_color-mix(in_oklab,var(--color-foreground)_6%,transparent)]">
+          <section className="workspace-panel rounded-2xl border border-border shadow-[0_8px_30px_color-mix(in_oklab,var(--color-foreground)_6%,transparent)]">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
               <div className="text-sm text-muted-foreground">
                 已选择 <span className="font-semibold text-foreground">{selectedAddresses.length}</span> 项
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" className="h-8 rounded-xl" onClick={() => void handleBatchToggleLogin(true)}>
-                  批量启用登录
-                </Button>
-                <Button variant="outline" size="sm" className="h-8 rounded-xl" onClick={() => void handleBatchToggleLogin(false)}>
-                  批量禁用登录
-                </Button>
-                <Button variant="outline" size="sm" className="h-8 rounded-xl" onClick={() => void handleBatchFavorite(true)}>
-                  批量收藏
-                </Button>
-                <Button variant="outline" size="sm" className="h-8 rounded-xl" onClick={() => setForwardDialogOpen(true)}>
-                  批量转发
-                </Button>
-              </div>
+              {canManageMailboxes ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-8 rounded-xl" onClick={() => void handleBatchToggleLogin(true)}>
+                    批量启用登录
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-8 rounded-xl" onClick={() => void handleBatchToggleLogin(false)}>
+                    批量禁用登录
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-8 rounded-xl" onClick={() => void handleBatchFavorite(true)}>
+                    批量收藏
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-8 rounded-xl" onClick={() => setForwardDialogOpen(true)}>
+                    批量转发
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground">访客模式为只读示例，管理操作已禁用</div>
+              )}
             </div>
             <div className="overflow-hidden rounded-2xl">
               <Table>
@@ -476,7 +564,7 @@ export function MailboxesPage() {
                 <TableBody>
                   {rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-32 text-center text-sm text-muted-foreground">
+                      <TableCell colSpan={canManageMailboxes ? 8 : 5} className="h-32 text-center text-sm text-muted-foreground">
                         {mailboxesQuery.isLoading ? "邮箱加载中..." : "暂无邮箱数据"}
                       </TableCell>
                     </TableRow>
@@ -579,6 +667,23 @@ export function MailboxesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ConfirmDialog
+          open={confirmState.open}
+          onOpenChange={(open) =>
+            setConfirmState((current) => ({
+              ...current,
+              open,
+              action: open ? current.action : null,
+            }))
+          }
+          title={confirmState.title}
+          description={confirmState.description}
+          confirmLabel={confirmState.confirmLabel}
+          confirmVariant={confirmState.confirmVariant}
+          loading={confirmBusy}
+          onConfirm={handleConfirmAction}
+        />
       </div>
     </AppShell>
   )

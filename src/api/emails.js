@@ -3,11 +3,101 @@
  * @module api/emails
  */
 
-import { getJwtPayload, errorResponse } from './helpers.js';
+import { getJwtPayload, errorResponse, isStrictAdmin } from './helpers.js';
 import { buildMockEmails, buildMockEmailDetail } from './mock.js';
 import { extractEmail } from '../utils/common.js';
-import { getMailboxIdByAddress } from '../db/index.js';
+import { getMailboxIdByAddress, getOrCreateMailboxId, recordSentEmail } from '../db/index.js';
 import { parseEmailBody } from '../email/parser.js';
+
+function buildPreview(content = '', htmlContent = '') {
+  const plain = String(content || '').trim() || String(htmlContent || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return plain.slice(0, 120);
+}
+
+function buildSampleInboxEntries(mailbox) {
+  const now = Date.now();
+  const textContent = [
+    "这是一个纯文本收件示例。",
+    "",
+    `Mailbox: ${mailbox}`,
+    "Verification Code: 481205",
+    "",
+    "这封邮件用于检查纯文本正文、列表摘要和验证码提取的展示效果。",
+  ].join("\n");
+
+  const htmlContent = `
+    <div style="font-family:Arial,sans-serif;padding:24px;background:#f5f8ff;color:#10213a;">
+      <h2 style="margin:0 0 12px;font-size:24px;">HTML Inbox Sample</h2>
+      <p style="margin:0 0 12px;">当前邮箱 <strong>${mailbox}</strong> 已收到一封 HTML 示例邮件。</p>
+      <p style="margin:0 0 12px;">本邮件用于验证 iframe 预览、正文铺满和摘要截断效果。</p>
+      <div style="padding:12px 14px;border-radius:14px;background:white;border:1px solid #d8e5ff;">
+        <div style="font-size:12px;color:#58709a;letter-spacing:.08em;text-transform:uppercase;">Status</div>
+        <div style="margin-top:6px;font-size:16px;font-weight:700;">HTML Preview Ready</div>
+      </div>
+    </div>
+  `.trim();
+
+  return [
+    {
+      sender: "alerts@cloudflaremail.dev",
+      subject: "Sample Inbox Text Message",
+      verificationCode: "481205",
+      content: textContent,
+      htmlContent: "",
+      preview: buildPreview(textContent, ""),
+      receivedAt: new Date(now - 2 * 60 * 1000).toISOString(),
+    },
+    {
+      sender: "design@apple-notify.example",
+      subject: "Sample Inbox HTML Message",
+      verificationCode: null,
+      content: "This is the text fallback for the HTML inbox sample.",
+      htmlContent,
+      preview: buildPreview("This is the text fallback for the HTML inbox sample.", htmlContent),
+      receivedAt: new Date(now - 1 * 60 * 1000).toISOString(),
+    },
+  ];
+}
+
+function buildSampleSentEntries(mailbox) {
+  const now = Date.now();
+  const sentText = [
+    "Hello team,",
+    "",
+    "This is a plain text sample from the sent mailbox.",
+    "It is used to verify the sent detail panel and text rendering.",
+    "",
+    `From: ${mailbox}`,
+  ].join("\n");
+
+  const sentHtml = `
+    <div style="font-family:Arial,sans-serif;padding:24px;background:#f7fbff;color:#10213a;">
+      <h2 style="margin:0 0 12px;font-size:24px;">HTML Sent Sample</h2>
+      <p style="margin:0 0 12px;">This message demonstrates the sent mailbox HTML detail flow.</p>
+      <p style="margin:0 0 16px;">From mailbox: <strong>${mailbox}</strong></p>
+      <a href="https://example.com" style="display:inline-block;padding:10px 14px;border-radius:12px;background:#295bff;color:#fff;text-decoration:none;">Open Example</a>
+    </div>
+  `.trim();
+
+  return [
+    {
+      to: "product@example.com",
+      subject: "Sample Sent Text Message",
+      text: sentText,
+      html: "",
+      status: "delivered",
+      createdAt: new Date(now - 3 * 60 * 1000).toISOString(),
+    },
+    {
+      to: "design@example.com",
+      subject: "Sample Sent HTML Message",
+      text: "This is the text fallback for the HTML sent sample.",
+      html: sentHtml,
+      status: "delivered",
+      createdAt: new Date(now - 90 * 1000).toISOString(),
+    },
+  ];
+}
 
 /**
  * 处理邮件相关 API
@@ -22,6 +112,74 @@ export async function handleEmailsApi(request, db, url, path, options) {
   const isMock = !!options.mockOnly;
   const isMailboxOnly = !!options.mailboxOnly;
   const r2 = options.r2;
+
+  if (path === '/api/emails/seed-samples' && request.method === 'POST') {
+    if (isMock) return errorResponse('演示模式不可注入示例邮件', 403);
+    if (!isStrictAdmin(request, options)) return errorResponse('仅管理员可生成示例邮件', 403);
+
+    try {
+      const body = await request.json().catch(() => ({}));
+      const mailbox = extractEmail(body?.mailbox || '').trim().toLowerCase();
+      if (!mailbox) {
+        return errorResponse('缺少 mailbox 参数', 400);
+      }
+
+      const mailboxId = await getOrCreateMailboxId(db, mailbox);
+      const inboxEntries = buildSampleInboxEntries(mailbox);
+      const sentEntries = buildSampleSentEntries(mailbox);
+
+      for (const item of inboxEntries) {
+        await db.prepare(`
+          INSERT INTO messages (
+            mailbox_id, sender, to_addrs, subject, verification_code, preview, content, html_content, r2_bucket, r2_object_key, received_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          mailboxId,
+          item.sender,
+          mailbox,
+          item.subject,
+          item.verificationCode,
+          item.preview,
+          item.content,
+          item.htmlContent || null,
+          'mail-eml',
+          '',
+          item.receivedAt,
+        ).run();
+      }
+
+      for (const item of sentEntries) {
+        await recordSentEmail(db, {
+          resendId: null,
+          fromName: 'Sample Mailer',
+          from: mailbox,
+          to: item.to,
+          subject: item.subject,
+          html: item.html || null,
+          text: item.text || null,
+          status: item.status,
+          scheduledAt: null,
+        });
+
+        await db.prepare(`
+          UPDATE sent_emails
+          SET created_at = ?, updated_at = ?
+          WHERE id = (SELECT MAX(id) FROM sent_emails WHERE from_addr = ?)
+        `).bind(item.createdAt, item.createdAt, mailbox).run();
+      }
+
+      return Response.json({
+        success: true,
+        mailbox,
+        inboxCreated: inboxEntries.length,
+        sentCreated: sentEntries.length,
+      });
+    } catch (e) {
+      console.error('生成示例邮件失败:', e);
+      return errorResponse('生成示例邮件失败', 500);
+    }
+  }
 
   // 获取邮件列表
   if (path === '/api/emails' && request.method === 'GET') {
