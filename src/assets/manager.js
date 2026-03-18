@@ -3,313 +3,96 @@
  * @module assets/manager
  */
 
-import { resolveAuthPayload } from '../middleware/auth.js';
-
 /**
- * 静态资源管理器
+ * React SPA 静态资源管理器
  */
 export class AssetManager {
   constructor() {
-    this.allowedPaths = new Set([
-      '/',
-      '/index.html',
-      '/login',
-      '/login.html',
-      '/admin.html',
-      '/html/mailboxes.html',
-      '/mailboxes.html',
-      '/mailbox.html',
-      '/html/mailbox.html',
-      '/templates/app.html',
-      '/templates/footer.html',
-      '/templates/loading.html',
-      '/templates/loading-inline.html',
-      '/templates/toast.html',
-      '/app.js',
-      '/app.css',
-      '/admin.js',
-      '/admin.css',
-      '/login.js',
-      '/login.css',
-      '/mailbox.js',
-      '/mock.js',
+    this.entryPath = '/index.html';
+    this.spaRoutes = new Set(['/', '/index.html', '/login', '/app', '/mailboxes', '/admin']);
+    this.staticPrefixes = ['/assets/'];
+    this.staticFiles = new Set([
+      '/logo.svg',
       '/favicon.svg',
-      '/route-guard.js',
-      '/app-router.js',
-      '/app-mobile.js',
-      '/app-mobile.css',
-      '/mailbox.css',
-      '/auth-guard.js',
-      '/storage.js'
+      '/favicon.ico',
+      '/manifest.webmanifest',
+      '/robots.txt',
     ]);
-
-    this.allowedPrefixes = [
-      '/assets/',
-      '/pic/',
-      '/templates/',
-      '/public/',
-      '/js/',
-      '/css/',
-      '/html/'
-    ];
-
-    this.protectedPaths = new Set([
-      '/admin.html',
-      '/admin',
-      '/admin/',
-      '/mailboxes.html',
-      '/html/mailboxes.html',
-      '/mailbox.html',
-      '/mailbox',
-      '/mailbox/'
-    ]);
-
-    this.guestOnlyPaths = new Set([
-      '/login',
-      '/login.html'
-    ]);
+    this.staticAssetPattern =
+      /\.(css|js|mjs|map|png|jpg|jpeg|gif|svg|webp|avif|ico|txt|xml|json|woff|woff2|ttf|otf)$/i;
   }
 
-  isPathAllowed(pathname) {
-    if (this.allowedPaths.has(pathname)) {
+  normalizePathname(pathname) {
+    if (!pathname || pathname === '/') {
+      return '/';
+    }
+
+    return pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  }
+
+  isStaticAssetPath(pathname) {
+    if (this.staticFiles.has(pathname)) {
       return true;
     }
-    return this.allowedPrefixes.some(prefix => pathname.startsWith(prefix));
+
+    if (this.staticPrefixes.some((prefix) => pathname.startsWith(prefix))) {
+      return true;
+    }
+
+    return this.staticAssetPattern.test(pathname);
   }
 
-  isProtectedPath(pathname) {
-    return this.protectedPaths.has(pathname);
-  }
-
-  isGuestOnlyPath(pathname) {
-    return this.guestOnlyPaths.has(pathname);
+  isSpaRoutePath(pathname) {
+    return this.spaRoutes.has(this.normalizePathname(pathname));
   }
 
   async handleAssetRequest(request, env, mailDomains) {
     const url = new URL(request.url);
     const pathname = url.pathname;
-    const JWT_TOKEN = env.JWT_TOKEN || env.JWT_SECRET || '';
-
-    if (!this.isPathAllowed(pathname)) {
-      return await this.handleIllegalPath(request, env, JWT_TOKEN);
-    }
-
-    if (this.isProtectedPath(pathname)) {
-      const authResult = await this.checkProtectedPathAuth(request, JWT_TOKEN, url);
-      if (authResult) return authResult;
-    }
-
-    if (this.isGuestOnlyPath(pathname)) {
-      const guestResult = await this.checkGuestOnlyPath(request, JWT_TOKEN, url);
-      if (guestResult) return guestResult;
-    }
 
     if (!env.ASSETS || !env.ASSETS.fetch) {
-      return Response.redirect(new URL('/login.html', url).toString(), 302);
+      return new Response('静态资源服务未配置', { status: 500 });
     }
 
-    const mappedRequest = this.handlePathMapping(request, url);
-
-    if (pathname === '/' || pathname === '/index.html') {
-      return await this.handleIndexPage(mappedRequest, env, mailDomains, JWT_TOKEN);
+    if (this.isStaticAssetPath(pathname)) {
+      return env.ASSETS.fetch(request);
     }
 
-    if (pathname === '/admin.html') {
-      return await this.handleAdminPage(mappedRequest, env, JWT_TOKEN);
+    if (!this.isSpaRoutePath(pathname)) {
+      return new Response('Not Found', { status: 404 });
     }
 
-    if (pathname === '/mailbox.html' || pathname === '/html/mailbox.html') {
-      return await this.handleMailboxPage(mappedRequest, env, JWT_TOKEN);
-    }
-    if (pathname === '/mailboxes.html' || pathname === '/html/mailboxes.html') {
-      return await this.handleAllMailboxesPage(mappedRequest, env, JWT_TOKEN);
-    }
-
-    return env.ASSETS.fetch(mappedRequest);
+    return this.handleSpaEntryRequest(request, env, mailDomains);
   }
 
-  async handleIllegalPath(request, env, JWT_TOKEN) {
+  async handleSpaEntryRequest(request, env, mailDomains) {
     const url = new URL(request.url);
-    const payload = await resolveAuthPayload(request, JWT_TOKEN);
+    const entryRequest = new Request(new URL(this.entryPath, url).toString(), request);
+    const response = await env.ASSETS.fetch(entryRequest);
 
-    if (payload !== false) {
-      if (payload.role === 'mailbox') {
-        return Response.redirect(new URL('/html/mailbox.html', url).toString(), 302);
-      } else {
-        return Response.redirect(new URL('/', url).toString(), 302);
-      }
+    if (!response.ok) {
+      return response;
     }
-
-    return Response.redirect(new URL('/templates/loading.html', url).toString(), 302);
-  }
-
-  async checkProtectedPathAuth(request, JWT_TOKEN, url) {
-    const payload = await resolveAuthPayload(request, JWT_TOKEN);
-
-    if (!payload) {
-      const loading = new URL('/templates/loading.html', url);
-      if (url.pathname.includes('mailbox')) {
-        loading.searchParams.set('redirect', '/html/mailbox.html');
-      } else {
-        loading.searchParams.set('redirect', '/admin.html');
-      }
-      return Response.redirect(loading.toString(), 302);
-    }
-
-    if (url.pathname.includes('mailbox')) {
-      if (payload.role !== 'mailbox') {
-        return Response.redirect(new URL('/', url).toString(), 302);
-      }
-      if (url.pathname === '/' || url.pathname === '/index.html') {
-        return Response.redirect(new URL('/html/mailbox.html', url).toString(), 302);
-      }
-    } else {
-      const isAllowed = (payload.role === 'admin' || payload.role === 'guest' || payload.role === 'mailbox');
-      if (!isAllowed) {
-        return Response.redirect(new URL('/', url).toString(), 302);
-      }
-    }
-
-    return null;
-  }
-
-  async checkGuestOnlyPath(request, JWT_TOKEN, url) {
-    const payload = await resolveAuthPayload(request, JWT_TOKEN);
-
-    if (payload !== false) {
-      return Response.redirect(new URL('/', url).toString(), 302);
-    }
-
-    return null;
-  }
-
-  handlePathMapping(request, url) {
-    let targetUrl = url.toString();
-
-    if (url.pathname === '/login') {
-      targetUrl = new URL('/login.html', url).toString();
-    }
-
-    if (url.pathname === '/admin') {
-      targetUrl = new URL('/html/admin.html', url).toString();
-    }
-    if (url.pathname === '/admin.html') {
-      targetUrl = new URL('/html/admin.html', url).toString();
-    }
-
-    if (url.pathname === '/mailbox') {
-      targetUrl = new URL('/html/mailbox.html', url).toString();
-    }
-    if (url.pathname === '/mailbox.html') {
-      targetUrl = new URL('/html/mailbox.html', url).toString();
-    }
-    if (url.pathname === '/mailboxes.html') {
-      targetUrl = new URL('/html/mailboxes.html', url).toString();
-    }
-
-    return new Request(targetUrl, request);
-  }
-
-  async handleIndexPage(request, env, mailDomains, JWT_TOKEN) {
-    const url = new URL(request.url);
-    const payload = await resolveAuthPayload(request, JWT_TOKEN);
-
-    if (payload && payload.role === 'mailbox') {
-      return Response.redirect(new URL('/html/mailbox.html', url).toString(), 302);
-    }
-
-    const resp = await env.ASSETS.fetch(request);
 
     try {
-      const text = await resp.text();
-
-      const injected = text.replace(
+      const html = await response.text();
+      const injected = html.replace(
         '<meta name="mail-domains" content="">',
-        `<meta name="mail-domains" content="${mailDomains.join(',')}">`
+        `<meta name="mail-domains" content="${mailDomains.join(',')}">`,
       );
+
+      const headers = new Headers(response.headers);
+      headers.set('Content-Type', 'text/html; charset=utf-8');
+      headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 
       return new Response(injected, {
-        headers: {
-          'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
-        }
+        status: response.status,
+        statusText: response.statusText,
+        headers,
       });
     } catch (_) {
-      return resp;
+      return response;
     }
-  }
-
-  async handleAdminPage(request, env, JWT_TOKEN) {
-    const url = new URL(request.url);
-    const payload = await resolveAuthPayload(request, JWT_TOKEN);
-
-    if (!payload) {
-      const loadingReq = new Request(
-        new URL('/templates/loading.html?redirect=%2Fadmin.html', url).toString(),
-        request
-      );
-      return env.ASSETS.fetch(loadingReq);
-    }
-
-    const isAllowed = (payload.role === 'admin' || payload.role === 'guest' || payload.role === 'mailbox');
-    if (!isAllowed) {
-      return Response.redirect(new URL('/', url).toString(), 302);
-    }
-
-    return env.ASSETS.fetch(request);
-  }
-
-  async handleMailboxPage(request, env, JWT_TOKEN) {
-    const url = new URL(request.url);
-    const payload = await resolveAuthPayload(request, JWT_TOKEN);
-
-    if (!payload) {
-      const loadingReq = new Request(
-        new URL('/templates/loading.html?redirect=%2Fhtml%2Fmailbox.html', url).toString(),
-        request
-      );
-      return env.ASSETS.fetch(loadingReq);
-    }
-
-    if (payload.role !== 'mailbox') {
-      if (payload.role === 'admin' || payload.role === 'guest') {
-        return Response.redirect(new URL('/', url).toString(), 302);
-      } else {
-        return Response.redirect(new URL('/login.html', url).toString(), 302);
-      }
-    }
-
-    return env.ASSETS.fetch(request);
-  }
-
-  async handleAllMailboxesPage(request, env, JWT_TOKEN) {
-    const url = new URL(request.url);
-    const payload = await resolveAuthPayload(request, JWT_TOKEN);
-    if (!payload) {
-      const loadingReq = new Request(
-        new URL('/templates/loading.html?redirect=%2Fhtml%2Fmailboxes.html', url).toString(),
-        request
-      );
-      return env.ASSETS.fetch(loadingReq);
-    }
-    const isStrictAdmin = (payload.role === 'admin' && (payload.username === '__root__' || payload.username));
-    const isGuest = (payload.role === 'guest');
-    if (!isStrictAdmin && !isGuest) {
-      return Response.redirect(new URL('/', url).toString(), 302);
-    }
-    return env.ASSETS.fetch(request);
-  }
-
-  addAllowedPath(path) {
-    this.allowedPaths.add(path);
-  }
-
-  addAllowedPrefix(prefix) {
-    this.allowedPrefixes.push(prefix);
-  }
-
-  removeAllowedPath(path) {
-    this.allowedPaths.delete(path);
   }
 
   isApiPath(pathname) {
@@ -324,17 +107,15 @@ export class AssetManager {
       path: url.pathname,
       userAgent: request.headers.get('User-Agent') || '',
       referer: request.headers.get('Referer') || '',
-      ip: request.headers.get('CF-Connecting-IP') ||
+      ip:
+        request.headers.get('CF-Connecting-IP') ||
         request.headers.get('X-Forwarded-For') ||
-        request.headers.get('X-Real-IP') || 'unknown'
+        request.headers.get('X-Real-IP') ||
+        'unknown',
     };
   }
 }
 
-/**
- * 创建默认的资源管理器实例
- * @returns {AssetManager} 资源管理器实例
- */
 export function createAssetManager() {
   return new AssetManager();
 }
