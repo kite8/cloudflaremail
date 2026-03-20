@@ -7,7 +7,7 @@ compatibility_date = "2026-03-18"
 [[d1_databases]]
 binding = "TEMP_MAIL_DB"
 database_name = "maill_free_db" #你的d1数据库名称
-database_id = "87e35a2a-4ba8-46ca-b5f3-e4da745a3242" # 你的database_id
+database_id = "fb3fe1ac-a2af-42b7-86da-2572655e64d1" # 你的database_id
 # 登录会话过期时间（单位：天，默认7天）
 # 环境变量
 
